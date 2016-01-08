@@ -1,25 +1,99 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research 1"
+author: "CA"
+date: "January 7, 2016"
+output: html_document
 ---
 
+```{r, include=FALSE}
+# Packages
+library(zoo)
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
 
-## Loading and preprocessing the data
+# Assignment 1
+
+## Loading and pre-processing data
+
+In the following, the data is loaded and prepared for the analysis (cleaning, formatting, etc.).
+
+```{r}
+# Loading data
+dat <- read.csv("activity.csv")
+# Reformat interval and then make date stamp
+dat$interval <- sprintf("%04.0f", dat$interval)
+dat$date <- ymd(dat$date)
+```
+
+## Mean and median total number of days
+
+Now the data is summarized by calculating the daily means and plotting a histogram, as well as computing the mean and median.
+
+```{r}
+# Steps per day
+perday <- dat %>% group_by(date) %>% summarize(steps = sum(steps))
+
+# Histogram
+ggplot(data = perday, aes(steps)) + geom_histogram() + xlab("Number of Steps taken") + ylab("Count") + ggtitle("Histogram of Steps taken")
+
+# Mean and Median
+perday %>% summarize(mean.steps = mean(steps, na.rm = TRUE), median.steps = median(steps, na.rm = TRUE))
+```
+
+## Daily activity pattern
+
+```{r}
+
+# Average steps per interval
+act.int <- dat %>% group_by(interval) %>% summarize(mean.act = mean(steps, na.rm = TRUE))
+
+# Line plot
+ggplot(data = act.int, aes(x = as.numeric(interval), y = mean.act)) + geom_line() + xlab("Time of day (in military format)") + 
+  ylab("Mean Steps per interval") + ggtitle("Activity during the day") + scale_x_continuous(breaks = seq(0,2400,200))
+
+# Max steps interval
+act.int %>% top_n(1, mean.act)
+```
+
+## Inputting missing values
+
+The strategy employed here is very simple: the NA value is replaced with the mean for the respective interval.
+
+```{r}
+# Count NAs
+dat %>% summarize(NAs = sum(is.na(steps)))
+
+# Creat new data set and fill in with mean for that day
+ndat <- dat
+for(i in 1:nrow(ndat)){
+  if(is.na(ndat$steps[i])){
+    ndat$steps[i] <- act.int$mean.act[act.int$interval == ndat$interval[i]]
+  }
+}
+
+# Histogram
+nperday <- ndat %>% group_by(date) %>% summarize(steps = sum(steps))
+ggplot(data = nperday, aes(steps)) + geom_histogram() + xlab("Number of Steps taken") + ylab("Count") + ggtitle("Histogram of Steps taken")
+# Mean and Median
+nperday %>% summarize(mean.steps = mean(steps, na.rm = TRUE), median.steps = median(steps, na.rm = TRUE))
+```
+
+## Weekend vs. weekday activity patterns
+
+Using the new dataset *ndat* for this.
+
+```{r}
+ndat <- ndat %>% mutate(weekend = factor(ifelse(weekdays(date, TRUE) == "Sun" | weekdays(date, TRUE) == "Sun", "Weekend", "Weekday")))
+# Line plot
+nact.int <- ndat %>% group_by(interval, weekend) %>% summarize(mean.act = mean(steps, na.rm = TRUE))
+ggplot(data = nact.int, aes(x = as.numeric(interval), y = mean.act)) + geom_line() + xlab("Time of day (in military format)") + 
+  ylab("Mean Steps per interval") + ggtitle("Activity during the day") + scale_x_continuous(breaks = seq(0,2400,200)) + facet_grid(weekend ~ .)
 
 
 
-## What is mean total number of steps taken per day?
+```
 
+EOF
 
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
